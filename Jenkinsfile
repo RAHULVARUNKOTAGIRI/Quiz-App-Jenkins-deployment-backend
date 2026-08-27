@@ -229,9 +229,11 @@ pipeline {
                     REM which "if not exist" accepts but "copy" and "rmdir" do
                     REM not - they are cmd builtins and read / as a switch, so
                     REM they fail with "The system cannot find the file
-                    REM specified". %VAR:/=\% rewrites them to backslashes.
-                    set "WAR_SRC=%APPZ_WAR:/=\%"
-                    set "TOMCAT=%TOMCAT_HOME:/=\%"
+                    REM specified". The substitutions below rewrite them to
+                    REM backslashes. Note the doubled backslash: Groovy eats one
+                    REM inside a triple-quoted string, so cmd receives a single.
+                    set "WAR_SRC=%APPZ_WAR:/=\\%"
+                    set "TOMCAT=%TOMCAT_HOME:/=\\%"
 
                     echo Checking Appzillon WAR...
 
@@ -320,7 +322,7 @@ pipeline {
                     echo APPZILLON HEALTH CHECK
                     echo ==========================================
 
-                    set "TOMCAT=%TOMCAT_HOME:/=\%"
+                    set "TOMCAT=%TOMCAT_HOME:/=\\%"
 
                     set RETRIES=30
 
