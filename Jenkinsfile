@@ -62,6 +62,32 @@ pipeline {
                 '''
             }
         }
+        stage('Stop Existing Backend') {
+    steps {
+
+        echo '=========================================='
+        echo 'STOPPING EXISTING BACKEND'
+        echo '=========================================='
+
+        bat '''
+            @echo off
+
+            echo Checking port 8093...
+
+            for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8093 ^| findstr LISTENING') do (
+                echo Stopping process %%a
+                taskkill /F /PID %%a
+            )
+
+            echo.
+            echo Waiting for process to stop...
+
+            ping 127.0.0.1 -n 4 >nul
+
+            echo Backend process stopped.
+        '''
+    }
+}
 
         stage('Build Backend') {
             steps {
