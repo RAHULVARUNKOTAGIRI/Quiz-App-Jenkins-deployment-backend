@@ -19,6 +19,13 @@ pipeline {
         TOMCAT_HOME = 'C:/Users/Kotagiri.varun/Downloads/apache-tomcat-9.0.53 2/apache-tomcat-9.0.53'
         TOMCAT_PORT = '8595'
         APPZILLON_URL = 'http://localhost:8595/QuizApp/'
+
+        // Playwright
+        // The test reads this, so it points at the context path Jenkins
+        // deploys to (QuizApp), not the exported name that has a space in it.
+        PLAYWRIGHT_BASE_URL = 'http://localhost:8595/QuizApp/'
+        PLAYWRIGHT_TEST = 'QuizFlowUiTest'
+        CI = 'true'
     }
 
     stages {
@@ -172,7 +179,12 @@ pipeline {
                     :CHECK_BACKEND
 
                     echo Checking backend on port 8093...
-                    curl -s -o nul -w "%%{http_code}" "http://localhost:8093" 
+
+                    REM /subjects is a real endpoint, so a 200 proves the app and
+                    REM its MySQL connection are up. Hitting the root would 404
+                    REM while curl still exits 0, which passes without checking
+                    REM anything - hence piping through findstr.
+                    curl -s -o nul -w "%%{http_code}" "http://localhost:8093/subjects" | findstr "200"
 
                     if not errorlevel 1 (
                         echo.
@@ -249,6 +261,11 @@ pipeline {
                     rmdir /S /Q "%TOMCAT_HOME%\\webapps\\QuizApp" >nul 2>&1
                     del /F /Q "%TOMCAT_HOME%\\webapps\\QuizApp.war" >nul 2>&1
 
+                    REM Also clear the older deployment that kept the exported
+                    REM name with a space, otherwise Tomcat serves two copies.
+                    rmdir /S /Q "%TOMCAT_HOME%\\webapps\\Quiz App" >nul 2>&1
+                    del /F /Q "%TOMCAT_HOME%\\webapps\\Quiz App.war" >nul 2>&1
+
                     echo.
 echo Copying Quiz App.war...
 
@@ -269,7 +286,7 @@ echo WAR copied successfully.
                     set "CATALINA_HOME=%TOMCAT_HOME%"
                     set "JENKINS_NODE_COOKIE=dontKillMe"
 
-                    "%TOMCAT_HOME%\\bin\\catalina.bat" start
+                    call "%TOMCAT_HOME%\\bin\\catalina.bat" start
 
                     echo Tomcat start command executed.
 
@@ -338,9 +355,47 @@ echo WAR copied successfully.
                 '''
             }
         }
+
+        stage('Playwright UI Tests') {
+            steps {
+
+                echo '=========================================='
+                echo 'INSTALLING PLAYWRIGHT CHROMIUM'
+                echo '=========================================='
+
+                // Downloads the browser Playwright drives. It is cached under
+                // %LOCALAPPDATA%\\ms-playwright, so after the first build this
+                // is a no-op that finishes in seconds.
+                bat 'mvn -f quizapp\\pom.xml "-DskipTests" exec:java "-Dexec.classpathScope=test" "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install chromium"'
+
+                echo '=========================================='
+                echo 'RUNNING PLAYWRIGHT TESTS'
+                echo '=========================================='
+
+                // Runs headless by default, which matters because a Jenkins
+                // service has no desktop to open a browser window on.
+                // PLAYWRIGHT_BASE_URL from the environment block tells the test
+                // which URL to hit.
+                bat 'mvn -f quizapp\\pom.xml "-Dtest=%PLAYWRIGHT_TEST%" test'
+            }
+        }
     }
 
     post {
+
+        always {
+
+            // Publishes the test results graph. allowEmptyResults keeps a
+            // failure in an earlier stage from also failing the report step.
+            junit allowEmptyResults: true,
+                testResults: 'quizapp/target/surefire-reports/*.xml'
+
+            // The screenshot the test takes of the result screen, plus the jar
+            // and backend log - the three things worth having when a build
+            // fails on a machine you cannot see.
+            archiveArtifacts allowEmptyArchive: true,
+                artifacts: 'quizapp/target/*.png, quizapp/target/*.jar, backend.log'
+        }
 
         success {
             echo '=========================================='
