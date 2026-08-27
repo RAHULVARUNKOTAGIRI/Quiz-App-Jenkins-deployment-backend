@@ -225,9 +225,17 @@ pipeline {
                 bat '''
                     @echo off
 
+                    REM The paths in the environment block use forward slashes,
+                    REM which "if not exist" accepts but "copy" and "rmdir" do
+                    REM not - they are cmd builtins and read / as a switch, so
+                    REM they fail with "The system cannot find the file
+                    REM specified". %VAR:/=\% rewrites them to backslashes.
+                    set "WAR_SRC=%APPZ_WAR:/=\%"
+                    set "TOMCAT=%TOMCAT_HOME:/=\%"
+
                     echo Checking Appzillon WAR...
 
-                    if not exist "%APPZ_WAR%" (
+                    if not exist "%WAR_SRC%" (
                         echo ERROR: WAR NOT FOUND
                         echo %APPZ_WAR%
                         exit /b 1
@@ -238,7 +246,7 @@ pipeline {
                     echo.
                     echo Checking Tomcat...
 
-                    if not exist "%TOMCAT_HOME%\\bin\\catalina.bat" (
+                    if not exist "%TOMCAT%\\bin\\catalina.bat" (
                         echo ERROR: catalina.bat not found
                         exit /b 1
                     )
@@ -258,35 +266,36 @@ pipeline {
                     echo.
                     echo Removing old QuizApp deployment...
 
-                    rmdir /S /Q "%TOMCAT_HOME%\\webapps\\QuizApp" >nul 2>&1
-                    del /F /Q "%TOMCAT_HOME%\\webapps\\QuizApp.war" >nul 2>&1
+                    rmdir /S /Q "%TOMCAT%\\webapps\\QuizApp" >nul 2>&1
+                    del /F /Q "%TOMCAT%\\webapps\\QuizApp.war" >nul 2>&1
 
                     REM Also clear the older deployment that kept the exported
                     REM name with a space, otherwise Tomcat serves two copies.
-                    rmdir /S /Q "%TOMCAT_HOME%\\webapps\\Quiz App" >nul 2>&1
-                    del /F /Q "%TOMCAT_HOME%\\webapps\\Quiz App.war" >nul 2>&1
+                    rmdir /S /Q "%TOMCAT%\\webapps\\Quiz App" >nul 2>&1
+                    del /F /Q "%TOMCAT%\\webapps\\Quiz App.war" >nul 2>&1
 
                     echo.
-echo Copying Quiz App.war...
+                    echo Copying Quiz App.war...
 
-copy /Y "C:/Users/Kotagiri.varun/Desktop/Quiz App/Quiz App/bin/Web/Quiz App.war" "C:/Users/Kotagiri.varun/Downloads/apache-tomcat-9.0.53 2/apache-tomcat-9.0.53/webapps/QuizApp.war"
+                    REM Deployed as QuizApp.war so the context path has no space.
+                    copy /Y "%WAR_SRC%" "%TOMCAT%\\webapps\\QuizApp.war"
 
-if errorlevel 1 (
-    echo ERROR: WAR COPY FAILED
-    exit /b 1
-)
+                    if errorlevel 1 (
+                        echo ERROR: WAR COPY FAILED
+                        exit /b 1
+                    )
 
-echo WAR copied successfully.
+                    echo WAR copied successfully.
 
                     echo.
                     echo Starting Tomcat...
 
                     set "JAVA_HOME=C:\\Program Files\\Java\\jdk-17.0.2"
                     set "PATH=%JAVA_HOME%\\bin;%PATH%"
-                    set "CATALINA_HOME=%TOMCAT_HOME%"
+                    set "CATALINA_HOME=%TOMCAT%"
                     set "JENKINS_NODE_COOKIE=dontKillMe"
 
-                    call "%TOMCAT_HOME%\\bin\\catalina.bat" start
+                    call "%TOMCAT%\\bin\\catalina.bat" start
 
                     echo Tomcat start command executed.
 
@@ -310,6 +319,8 @@ echo WAR copied successfully.
                     echo ==========================================
                     echo APPZILLON HEALTH CHECK
                     echo ==========================================
+
+                    set "TOMCAT=%TOMCAT_HOME:/=\%"
 
                     set RETRIES=30
 
@@ -339,10 +350,10 @@ echo WAR copied successfully.
                         echo.
                         echo TOMCAT LOGS:
 
-                        if exist "%TOMCAT_HOME%\\logs\\catalina.out" (
-                            powershell -Command "Get-Content '%TOMCAT_HOME%\\logs\\catalina.out' -Tail 30"
+                        if exist "%TOMCAT%\\logs\\catalina.out" (
+                            powershell -Command "Get-Content '%TOMCAT%\\logs\\catalina.out' -Tail 30"
                         ) else (
-                            dir "%TOMCAT_HOME%\\logs\\"
+                            dir "%TOMCAT%\\logs\\"
                         )
 
                         exit /b 1
