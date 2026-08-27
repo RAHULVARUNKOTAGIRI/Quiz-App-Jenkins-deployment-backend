@@ -398,10 +398,15 @@ pipeline {
 
         always {
 
-            // Publishes the test results graph. allowEmptyResults keeps a
-            // failure in an earlier stage from also failing the report step.
-            junit allowEmptyResults: true,
-                testResults: 'quizapp/target/surefire-reports/*.xml'
+            // The surefire XML is archived rather than published, because the
+            // JUnit plugin is not installed on this controller and calling
+            // junit without it fails the whole build. To get the test-results
+            // graph instead: Manage Jenkins > Plugins > Available > "JUnit",
+            // install, restart, then swap these two lines for
+            //   junit allowEmptyResults: true,
+            //       testResults: 'quizapp/target/surefire-reports/*.xml'
+            archiveArtifacts allowEmptyArchive: true,
+                artifacts: 'quizapp/target/surefire-reports/*.xml'
 
             // The screenshot the test takes of the result screen, plus the jar
             // and backend log - the three things worth having when a build
