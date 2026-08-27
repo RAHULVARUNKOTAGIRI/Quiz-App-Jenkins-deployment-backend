@@ -25,6 +25,14 @@ pipeline {
         // deploys to (QuizApp), not the exported name that has a space in it.
         PLAYWRIGHT_BASE_URL = 'http://localhost:8595/QuizApp/'
         PLAYWRIGHT_TEST = 'QuizFlowUiTest'
+
+        // Shows a real browser window during the build, and slows the steps
+        // down enough to follow. Only works because this controller runs as a
+        // logged-in user with a desktop - a Jenkins installed as a Windows
+        // service is in session 0 and cannot draw a window, so set this to
+        // false if you ever convert it to a service.
+        PLAYWRIGHT_HEADED = 'true'
+
         CI = 'true'
     }
 
@@ -411,8 +419,10 @@ pipeline {
             // The screenshot the test takes of the result screen, plus the jar
             // and backend log - the three things worth having when a build
             // fails on a machine you cannot see.
+            // The .webm is a recording of the whole browser run, so you can
+            // watch what Playwright did even if you missed the live window.
             archiveArtifacts allowEmptyArchive: true,
-                artifacts: 'quizapp/target/*.png, quizapp/target/*.jar, backend.log'
+                artifacts: 'quizapp/target/*.png, quizapp/target/videos/*.webm, quizapp/target/*.jar, backend.log'
         }
 
         success {

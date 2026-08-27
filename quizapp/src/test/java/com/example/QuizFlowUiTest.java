@@ -8,6 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import com.microsoft.playwright.Browser;
+import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
@@ -77,23 +78,58 @@ public class QuizFlowUiTest {
     /** The subject the first button selects; asserted on the result screen. */
     private static final String EXPECTED_SUBJECT = "General Knowledge";
 
+    /**
+     * Whether to show a real browser window. Off by default; a Jenkins running
+     * as a Windows service has no desktop to draw on and would fail. This
+     * controller runs as a logged-in user, so the Jenkinsfile turns it on.
+     */
+    private static boolean headed() {
+        if (Boolean.getBoolean("headed")) {
+            return true;
+        }
+        return "true".equalsIgnoreCase(System.getenv("PLAYWRIGHT_HEADED"));
+    }
+
+    /**
+     * Milliseconds to pause between actions. Headless runs go full speed;
+     * when a window is on screen the steps otherwise flash past too quickly to
+     * follow, so slow them down enough to watch.
+     */
+    private static double slowMo() {
+        String configured = System.getProperty("slowmo");
+        if (configured != null) {
+            return Double.parseDouble(configured);
+        }
+        return headed() ? 700 : 0;
+    }
+
     @Test
     void userTakesQuizAndSeesResult() {
         // try-with-resources closes Playwright even if an assertion fails.
         try (Playwright playwright = Playwright.create()) {
             Browser browser = playwright.chromium().launch(
                 new BrowserType.LaunchOptions()
-                    // Headless by default so this works in Jenkins, where no
-                    // desktop exists. Pass -Dheaded=true to watch it locally.
-                    .setHeadless(!Boolean.getBoolean("headed")));
+                    .setHeadless(!headed())
+                    .setSlowMo(slowMo()));
             try {
-                Page page = browser.newPage();
+                // Records the run to target/videos. Works headless too, so a
+                // Jenkins build always leaves something you can watch back.
+                BrowserContext context = browser.newContext(
+                    new Browser.NewContextOptions()
+                        .setRecordVideoDir(Paths.get("target/videos"))
+                        .setViewportSize(1280, 720));
+
+                Page page = context.newPage();
 
                 openQuiz(page);
                 answerAllQuestions(page);
                 String result = submitAndReadResult(page);
 
                 assertResultScreen(result);
+
+                // The video is only written out when the context closes.
+                context.close();
+                System.out.println("Video saved under quizapp/target/videos");
             } finally {
                 browser.close();
             }
