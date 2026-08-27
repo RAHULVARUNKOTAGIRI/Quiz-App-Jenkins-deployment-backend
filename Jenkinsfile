@@ -226,7 +226,7 @@ pipeline {
                     echo.
                     echo Copying Quiz App.war...
 
-                    copy /Y "%APPZ_WAR%" "%TOMCAT_HOME%\\webapps\\QuizApp.war"
+                    copy /Y "C:\Users\Kotagiri.varun\Desktop\Quiz App\Quiz App\bin\Web\Quiz App.war" "C:\Users\Kotagiri.varun\Downloads\apache-tomcat-9.0.53 2\apache-tomcat-9.0.53\webapps\QuizApp.war"
 
                     if errorlevel 1 (
                         echo ERROR: WAR COPY FAILED
