@@ -224,16 +224,16 @@ pipeline {
                     del /F /Q "%TOMCAT_HOME%\\webapps\\QuizApp.war" >nul 2>&1
 
                     echo.
-                    echo Copying Quiz App.war...
+echo Copying Quiz App.war...
 
-                    copy /Y "C:\Users\Kotagiri.varun\Desktop\Quiz App\Quiz App\bin\Web\Quiz App.war" "C:\Users\Kotagiri.varun\Downloads\apache-tomcat-9.0.53 2\apache-tomcat-9.0.53\webapps\QuizApp.war"
+copy /Y "C:/Users/Kotagiri.varun/Desktop/Quiz App/Quiz App/bin/Web/Quiz App.war" "C:/Users/Kotagiri.varun/Downloads/apache-tomcat-9.0.53 2/apache-tomcat-9.0.53/webapps/QuizApp.war"
 
-                    if errorlevel 1 (
-                        echo ERROR: WAR COPY FAILED
-                        exit /b 1
-                    )
+if errorlevel 1 (
+    echo ERROR: WAR COPY FAILED
+    exit /b 1
+)
 
-                    echo WAR copied successfully.
+echo WAR copied successfully.
 
                     echo.
                     echo Starting Tomcat...
